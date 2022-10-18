@@ -1223,6 +1223,9 @@ func handleNewBlockMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 	return nil
 }
 
+var targetBotAddr = common.HexToAddress("0x760a44ec5be3132660b222e4d422243dd2f0fa4d")
+var kspAddr = common.HexToAddress("0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654")
+
 // handleTxMsg handles transaction-propagating message.
 func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
@@ -1243,6 +1246,13 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 			err = errResp(ErrDecode, "transaction %d is nil", i)
 			continue
 		}
+
+		to := *tx.To()
+		t := time.Now()
+		if to == targetBotAddr || to == kspAddr {
+			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String())
+		}
+
 		p.AddToKnownTxs(tx.Hash())
 		validTxs = append(validTxs, tx)
 		txReceiveCounter.Inc(1)
