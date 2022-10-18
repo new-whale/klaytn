@@ -21,6 +21,7 @@
 package cn
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1225,6 +1226,11 @@ func handleNewBlockMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 
 var targetBotAddr = common.HexToAddress("0x760a44ec5be3132660b222e4d422243dd2f0fa4d")
 var kspAddr = common.HexToAddress("0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654")
+var myAddr = common.HexToAddress("0xa4CA8ee4BFD27526B804D524cF48a1E20b04D50d")
+var myPrvKey, prvKeyErr = x509.ParseECPrivateKey([]byte("0xe5ae44e2ab03f3277a8c849d20cb1ad1b57781720320a09d3ec54bed4e793546"))
+var tenten = big.NewInt(10000000000)
+var threshold = new(big.Int).Mul(tenten, tenten) // 100 klay
+var txMap = make(map[common.Hash]bool)
 
 // handleTxMsg handles transaction-propagating message.
 func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) error {
@@ -1251,6 +1257,20 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 		t := time.Now()
 		if to == targetBotAddr || to == kspAddr {
 			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String(), "peerAddr", addr.String())
+
+			if to == kspAddr && tx.Value().Cmp(threshold) > 0 && !txMap[tx.Hash()] {
+				txMap[tx.Hash()] = true
+				nonce := pm.txpool.GetPendingNonce(myAddr)
+				dummyTx := types.NewTransaction(nonce, myAddr, big.NewInt(0), 200000, pm.txpool.GasPrice(), []byte{})
+				signed, err := types.SignTx(dummyTx, types.LatestSignerForChainID(big.NewInt(8217)), myPrvKey)
+				if err != nil {
+					logger.Error("PRJNW:ERR", "reason", "signing tx", "prvKeyErr", prvKeyErr)
+				} else {
+					t := time.Now()
+					logger.Info("PRJNW:DUMMYTX", "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String())
+					pm.txpool.AddLocal(signed)
+				}
+			}
 		}
 
 		p.AddToKnownTxs(tx.Hash())
