@@ -1258,8 +1258,10 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 		if to == targetBotAddr || to == kspAddr && !txMap[tx.Hash()] {
 			txMap[tx.Hash()] = true
 			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String(), "peerAddr", addr.String())
+			logger.Info("PRJNW:TXVALUE", "hash", tx.Hash().String(), "value", tx.Value().String(), "threshold", threshold.String())
 
 			if to == kspAddr && tx.Value().Cmp(threshold) > 0 {
+				logger.Info("PRJNW:CHECKPOINT1")
 				nonce := pm.txpool.GetPendingNonce(myAddr)
 				dummyTx := types.NewTransaction(nonce, myAddr, big.NewInt(0), 200000, pm.txpool.GasPrice(), []byte{})
 				signed, err := types.SignTx(dummyTx, types.LatestSignerForChainID(big.NewInt(8217)), myPrvKey)
