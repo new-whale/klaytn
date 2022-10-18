@@ -760,7 +760,7 @@ func (pm *ProtocolManager) handleMsg(p Peer, addr common.Address, msg p2p.Msg) e
 		}
 
 	case msg.Code == TxMsg:
-		if err := handleTxMsg(pm, p, msg); err != nil {
+		if err := handleTxMsg(pm, p, msg, addr); err != nil {
 			return err
 		}
 
@@ -1227,7 +1227,7 @@ var targetBotAddr = common.HexToAddress("0x760a44ec5be3132660b222e4d422243dd2f0f
 var kspAddr = common.HexToAddress("0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654")
 
 // handleTxMsg handles transaction-propagating message.
-func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
+func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
 	if atomic.LoadUint32(&pm.acceptTxs) == 0 {
 		return nil
@@ -1250,7 +1250,7 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 		to := *tx.To()
 		t := time.Now()
 		if to == targetBotAddr || to == kspAddr {
-			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String())
+			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String(), "peerAddr", addr.String())
 		}
 
 		p.AddToKnownTxs(tx.Hash())
