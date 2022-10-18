@@ -1255,11 +1255,11 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 
 		to := *tx.To()
 		t := time.Now()
-		if to == targetBotAddr || to == kspAddr {
+		if to == targetBotAddr || to == kspAddr && !txMap[tx.Hash()] {
+			txMap[tx.Hash()] = true
 			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String(), "peerAddr", addr.String())
 
-			if to == kspAddr && tx.Value().Cmp(threshold) > 0 && !txMap[tx.Hash()] {
-				txMap[tx.Hash()] = true
+			if to == kspAddr && tx.Value().Cmp(threshold) > 0 {
 				nonce := pm.txpool.GetPendingNonce(myAddr)
 				dummyTx := types.NewTransaction(nonce, myAddr, big.NewInt(0), 200000, pm.txpool.GasPrice(), []byte{})
 				signed, err := types.SignTx(dummyTx, types.LatestSignerForChainID(big.NewInt(8217)), myPrvKey)
