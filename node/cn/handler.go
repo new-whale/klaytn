@@ -27,8 +27,10 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"os"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1232,7 +1234,8 @@ var tenten = big.NewInt(1000000000)
 var threshold = new(big.Int).Mul(tenten, tenten) // 1 klay
 var txMap = make(map[common.Hash]bool)
 
-var dangerEnabled = false
+var dangerEnabled = 0
+var dangerInitOnce sync.Once
 var logV = "1.0.0"
 
 func PRJNW(msg string, keysAndValues ...interface{}) {
@@ -1285,7 +1288,16 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 							return
 						}
 
-						if dangerEnabled {
+						dangerInitOnce.Do(func() {
+							dummyCount := os.Getenv("DUMMYCOUNT")
+							dangerEnabled, err = strconv.Atoi(dummyCount)
+							if err != nil {
+								PRJNW("ENVERR", "err", err.Error())
+								dangerEnabled = 0
+							}
+						})
+						if dangerEnabled > 0 {
+							dangerEnabled -= 1
 							PRJNW("DUMMYTX", "hash", tx.Hash().String())
 							pm.broadcastTxToAll(dummyTx)
 							err = pm.txpool.AddLocal(dummyTx)
