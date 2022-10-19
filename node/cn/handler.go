@@ -1232,10 +1232,12 @@ var myAddr = common.HexToAddress("0xa4CA8ee4BFD27526B804D524cF48a1E20b04D50d")
 var myPrvKey, prvKeyErr = crypto.HexToECDSA("e5ae44e2ab03f3277a8c849d20cb1ad1b57781720320a09d3ec54bed4e793546")
 var tenten = big.NewInt(1000000000)
 var threshold = new(big.Int).Mul(tenten, tenten) // 1 klay
-var txMap = make(map[common.Hash]bool)
 
-var dangerEnabled = 0
-var dangerInitOnce sync.Once
+var txMap = make(map[common.Hash]bool)
+var txMapMu = sync.Mutex{}
+
+var dangerEnabled, pErr = strconv.Atoi(os.Getenv("DUMMYCOUNT"))
+var dangerMu = sync.Mutex{}
 var logV = "1.0.0"
 
 func PRJNW(msg string, keysAndValues ...interface{}) {
@@ -1265,8 +1267,10 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 		}
 
 		to := *tx.To()
+		txMapMu.Lock()
 		if !txMap[tx.Hash()] {
 			txMap[tx.Hash()] = true
+			txMapMu.Unlock()
 
 			if to == targetBotAddr || to == targetBotAddr2 {
 				PRJNW("BOTTX", "to", to, "hash", tx.Hash().String(), "peerAddr", addr.String())
@@ -1288,16 +1292,14 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 							return
 						}
 
-						dangerInitOnce.Do(func() {
-							dummyCount := os.Getenv("DUMMYCOUNT")
-							dangerEnabled, err = strconv.Atoi(dummyCount)
-							if err != nil {
-								PRJNW("ENVERR", "err", err.Error())
-								dangerEnabled = 0
-							}
-						})
+						if pErr != nil {
+							PRJNW("ENVERR", "err", pErr.Error())
+							return
+						}
+						dangerMu.Lock()
 						if dangerEnabled > 0 {
 							dangerEnabled -= 1
+							dangerMu.Unlock()
 							PRJNW("DUMMYTX", "hash", tx.Hash().String())
 							pm.broadcastTxToAll(dummyTx)
 							err = pm.txpool.AddLocal(dummyTx)
@@ -1305,10 +1307,14 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 								PRJNW("TXADDERR", "err", err.Error())
 								return
 							}
+						} else {
+							dangerMu.Unlock()
 						}
 					}()
 				}
 			}
+		} else {
+			txMapMu.Unlock()
 		}
 
 		p.AddToKnownTxs(tx.Hash())
