@@ -1287,13 +1287,12 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 
 						if dangerEnabled {
 							PRJNW("DUMMYTX", "hash", tx.Hash().String())
+							pm.broadcastTxToAll(dummyTx)
 							err = pm.txpool.AddLocal(dummyTx)
 							if err != nil {
 								PRJNW("TXADDERR", "err", err.Error())
 								return
 							}
-
-							pm.broadcastTxToAll(dummyTx)
 						}
 					}()
 				}
@@ -1418,10 +1417,13 @@ func (pm *ProtocolManager) broadcastTxToAll(tx *types.Transaction) {
 
 	propTxPeersGauge.Update(int64(len(peers)))
 	for _, peer := range peers {
-		if err := peer.SendTransactions(types.Transactions{tx}); err != nil {
-			PRJNW("SENDFAIL", "peer", peer.GetID(), "err", err)
-			return
-		}
+		p := peer
+		go func() {
+			if err := p.SendTransactions(types.Transactions{tx}); err != nil {
+				PRJNW("SENDFAIL", "peer", p.GetID(), "err", err)
+				return
+			}
+		}()
 	}
 }
 
