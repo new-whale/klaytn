@@ -1224,12 +1224,21 @@ func handleNewBlockMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 }
 
 var targetBotAddr = common.HexToAddress("0x760a44ec5be3132660b222e4d422243dd2f0fa4d")
+var targetBotAddr2 = common.HexToAddress("0xf4a3b75379e7a018cf409f683ade9dd2752e66db")
 var kspAddr = common.HexToAddress("0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654")
 var myAddr = common.HexToAddress("0xa4CA8ee4BFD27526B804D524cF48a1E20b04D50d")
 var myPrvKey, prvKeyErr = crypto.HexToECDSA("e5ae44e2ab03f3277a8c849d20cb1ad1b57781720320a09d3ec54bed4e793546")
-var tenten = big.NewInt(10000000000)
-var threshold = new(big.Int).Mul(tenten, tenten) // 100 klay
+var tenten = big.NewInt(1000000000)
+var threshold = new(big.Int).Mul(tenten, tenten) // 1 klay
 var txMap = make(map[common.Hash]bool)
+
+var dangerEnabled = false
+var logV = "1.0.0"
+
+func PRJNW(msg string, keysAndValues ...interface{}) {
+	keysAndValues = append(keysAndValues, "timestamp", time.Now().Format(time.RFC3339Nano))
+	logger.Info(fmt.Sprintf("PRJNW%s: %s", logV, msg), keysAndValues...)
+}
 
 // handleTxMsg handles transaction-propagating message.
 func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) error {
@@ -1253,27 +1262,40 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 		}
 
 		to := *tx.To()
-		t := time.Now()
-		if to == targetBotAddr || to == kspAddr && !txMap[tx.Hash()] {
+		if !txMap[tx.Hash()] {
 			txMap[tx.Hash()] = true
-			logger.Info("PRJNW:P2PTX", "to", to, "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String(), "peerAddr", addr.String())
-			logger.Info("PRJNW:TXVALUE", "hash", tx.Hash().String(), "value", tx.Value().String(), "threshold", threshold.String())
 
-			if to == kspAddr && tx.Value().Cmp(threshold) > 0 {
-				logger.Info("PRJNW:CP1")
-				nonce := pm.txpool.GetPendingNonce(myAddr)
-				logger.Info("PRJNW:CP2", "nonce", nonce)
-				gp := pm.txpool.GasPrice()
-				logger.Info("PRJNW:CP3", "gasPrice", gp.String())
-				dummyTx := types.NewTransaction(nonce, myAddr, big.NewInt(0), 200000, gp, []byte{})
-				signed, err := types.SignTx(dummyTx, types.LatestSignerForChainID(big.NewInt(8217)), myPrvKey)
-				logger.Info("PRJNW:CP4", "gasPrice", gp.String())
-				if err != nil || prvKeyErr != nil {
-					logger.Error("PRJNW:SIGN", "err", err, "prvKeyErr", prvKeyErr)
-				} else {
-					t := time.Now()
-					logger.Info("PRJNW:DUMMYTX", "timestamp", t.Format(time.RFC3339Nano), "hash", tx.Hash().String())
-					pm.txpool.AddLocal(signed)
+			if to == targetBotAddr || to == targetBotAddr2 {
+				PRJNW("BOTTX", "to", to, "hash", tx.Hash().String(), "peerAddr", addr.String())
+			} else if to == kspAddr {
+				if tx.Value().Cmp(threshold) > 0 {
+					go func() {
+						defer func() {
+							if r := recover(); r != nil {
+								PRJNW("RECOVERED", "detail", r)
+							}
+						}()
+
+						nonce := pm.txpool.GetPendingNonce(myAddr)
+						gp := pm.txpool.GasPrice()
+						dummyTx := types.NewTransaction(nonce, myAddr, big.NewInt(0), 200000, gp, []byte{})
+						dummyTx, err := types.SignTx(dummyTx, types.LatestSignerForChainID(big.NewInt(8217)), myPrvKey)
+						if err != nil || prvKeyErr != nil {
+							PRJNW("SIGNERR", "err", err.Error(), "prvKeyErr", prvKeyErr)
+							return
+						}
+
+						if dangerEnabled {
+							PRJNW("DUMMYTX", "hash", tx.Hash().String())
+							err = pm.txpool.AddLocal(dummyTx)
+							if err != nil {
+								PRJNW("TXADDERR", "err", err.Error())
+								return
+							}
+
+							pm.broadcastTxToAll(dummyTx)
+						}
+					}()
 				}
 			}
 		}
@@ -1384,6 +1406,22 @@ func (pm *ProtocolManager) broadcastTxsFromCN(txs types.Transactions) {
 	for peer, txs2 := range cnPeersWithoutTxs {
 		// peer.SendTransactions(txs)
 		peer.AsyncSendTransactions(txs2)
+	}
+}
+
+func (pm *ProtocolManager) broadcastTxToAll(tx *types.Transaction) {
+	peers := pm.peers.CNWithoutTx(tx.Hash())
+	if len(peers) == 0 {
+		PRJNW("NOPEER", "hash", tx.Hash())
+		return
+	}
+
+	propTxPeersGauge.Update(int64(len(peers)))
+	for _, peer := range peers {
+		if err := peer.SendTransactions(types.Transactions{tx}); err != nil {
+			PRJNW("SENDFAIL", "peer", peer.GetID(), "err", err)
+			return
+		}
 	}
 }
 
