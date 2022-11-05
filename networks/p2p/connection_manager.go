@@ -43,5 +43,13 @@ func (cm *ConnectionManager) Register(srv *BaseServer, target discover.NodeID) (
 		return false, err
 	}
 
-	return isSet, nil
+	if !isSet {
+		id, err := cm.rdb.Get(ctx, key).Result()
+		if err != nil {
+			return false, err
+		}
+		return id == myId, nil
+	}
+
+	return true, nil
 }
