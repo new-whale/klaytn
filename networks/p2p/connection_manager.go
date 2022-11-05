@@ -38,28 +38,10 @@ func (cm *ConnectionManager) Register(srv *BaseServer, target discover.NodeID) (
 	key := fmt.Sprintf("connection-%s", target.String())
 	ctx := context.Background()
 
-	if _, err := cm.rdb.Pipelined(ctx, func(p redis.Pipeliner) error {
-		cnt, err := p.Exists(ctx, key).Result()
-		if err != nil {
-			return err
-		}
-
-		if cnt == 0 {
-			srv.logger.Warn("#### NEW CONNECTION ####", "target", target.String())
-			p.Set(ctx, key, myId, 24*time.Hour)
-		} else {
-			srv.logger.Warn("@@@@ CONNECTION ALREADY EXISTS @@@@", "target", target.String())
-		}
-
-		return nil
-	}); err != nil {
-		return false, err
-	}
-
-	id, err := cm.rdb.Get(ctx, key).Result()
+	isSet, err := cm.rdb.SetNX(ctx, key, myId, 24*time.Hour).Result()
 	if err != nil {
 		return false, err
 	}
 
-	return id == myId, nil
+	return isSet, nil
 }

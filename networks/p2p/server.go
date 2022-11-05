@@ -1691,7 +1691,7 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 		return err
 	}
 	if !isValid {
-		srv.logger.Info("Conneciton already exists.", "target", c.id.String())
+		srv.logger.Warn("Conneciton already exists.", "target", c.id.String())
 		return errors.New("Connection already exists")
 	}
 
