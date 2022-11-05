@@ -1687,22 +1687,22 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 	clog := srv.logger.NewWith("id", c.id, "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	// For dialed connections, check that the remote public key matches.
 	if dialDest != nil && c.id != dialDest.ID {
-		clog.Warn("Dialed identity mismatch", "want", c, dialDest.ID)
+		clog.Trace("Dialed identity mismatch", "want", c, dialDest.ID)
 		return DiscUnexpectedIdentity
 	}
 	err = srv.checkpoint(c, srv.posthandshake)
 	if err != nil {
-		clog.Warn("Rejected peer before protocol handshake", "err", err)
+		clog.Trace("Rejected peer before protocol handshake", "err", err)
 		return err
 	}
 	// Run the protocol handshake
 	phs, err := c.doProtoHandshake(srv.ourHandshake)
 	if err != nil {
-		clog.Warn("Failed protobuf handshake", "err", err)
+		clog.Trace("Failed protobuf handshake", "err", err)
 		return err
 	}
 	if phs.ID != c.id {
-		clog.Warn("Wrong devp2p handshake identity", "err", phs.ID)
+		clog.Trace("Wrong devp2p handshake identity", "err", phs.ID)
 		return DiscUnexpectedIdentity
 	}
 	c.caps, c.name, c.multiChannel = phs.Caps, phs.Name, phs.Multichannel
@@ -1720,12 +1720,12 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 
 	err = srv.checkpoint(c, srv.addpeer)
 	if err != nil {
-		clog.Warn("Rejected peer", "err", err)
+		clog.Trace("Rejected peer", "err", err)
 		return err
 	}
 	// If the checks completed successfully, runPeer has now been
 	// launched by run.
-	clog.Warn("connection set up", "inbound", dialDest == nil)
+	clog.Trace("connection set up", "inbound", dialDest == nil)
 	return nil
 }
 
