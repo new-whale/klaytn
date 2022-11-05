@@ -46,6 +46,8 @@ func (cm *ConnectionManager) Register(srv *BaseServer, target discover.NodeID) (
 
 		if cnt == 0 {
 			p.Set(ctx, key, myId, 24*time.Hour)
+		} else {
+			srv.logger.Warn("@@@@ CONNECTION ALREADY EXISTS @@@@", "target", target.String())
 		}
 
 		return nil
