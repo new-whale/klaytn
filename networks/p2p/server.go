@@ -1684,6 +1684,18 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 		return err
 	}
 
+	// NW: check connection would be disjoint
+	CM.InitIfNeeded()
+	isValid, err := CM.Register(srv, c.id)
+	if err != nil {
+		srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err)
+		return err
+	}
+	if !isValid {
+		srv.logger.Info("Conneciton already exists.", "target", c.id.String())
+		return errors.New("Connection already exists")
+	}
+
 	clog := srv.logger.NewWith("id", c.id, "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	// For dialed connections, check that the remote public key matches.
 	if dialDest != nil && c.id != dialDest.ID {
