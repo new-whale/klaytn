@@ -15,23 +15,25 @@ type ConnectionManager struct {
 	initOnce sync.Once
 }
 
-var CM ConnectionManager
+var CM = new(ConnectionManager)
 
-func (cm ConnectionManager) InitIfNeeded() {
+func (cm *ConnectionManager) initIfNeeded() {
 	cm.initOnce.Do(func() {
 		// addr := os.Getenv("REDIS_ENDPOINT")
 
-		rdb := redis.NewClient(&redis.Options{
+		cm.rdb = redis.NewClient(&redis.Options{
 			Addr:     "redis:6379",
 			Password: "",
 			DB:       0, // use default DB
 		})
 
-		cm.rdb = rdb
+		println("REDIS CLIENT SET")
 	})
 }
 
-func (cm ConnectionManager) Register(srv *BaseServer, target discover.NodeID) (bool, error) {
+func (cm *ConnectionManager) Register(srv *BaseServer, target discover.NodeID) (bool, error) {
+	cm.initIfNeeded()
+
 	myId := discover.PubkeyID(&srv.PrivateKey.PublicKey).String()
 	key := fmt.Sprintf("connection-%s", target.String())
 	ctx := context.Background()

@@ -1685,7 +1685,6 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 	}
 
 	// NW: check connection would be disjoint
-	CM.InitIfNeeded()
 	isValid, err := CM.Register(srv, c.id)
 	if err != nil {
 		srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err)
