@@ -1707,6 +1707,17 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 	}
 	c.caps, c.name, c.multiChannel = phs.Caps, phs.Name, phs.Multichannel
 
+	// NW: check connection would be disjoint
+	isValid, err := CM.Register(srv, c.id)
+	if err != nil {
+		srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err)
+		return err
+	}
+	if !isValid {
+		srv.logger.Warn("Connection already exists.", "target", c.id.String())
+		return errors.New("Connection already exists")
+	}
+
 	err = srv.checkpoint(c, srv.addpeer)
 	if err != nil {
 		clog.Trace("Rejected peer", "err", err)
