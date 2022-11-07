@@ -27,10 +27,8 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"os"
 	"runtime/debug"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -53,6 +51,7 @@ import (
 	"github.com/klaytn/klaytn/rlp"
 	"github.com/klaytn/klaytn/storage/database"
 	"github.com/klaytn/klaytn/storage/statedb"
+	"github.com/klaytn/klaytn/utils"
 	"github.com/klaytn/klaytn/work"
 )
 
@@ -1225,20 +1224,20 @@ func handleNewBlockMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 	return nil
 }
 
-var targetBotAddr = common.HexToAddress("0x760a44ec5be3132660b222e4d422243dd2f0fa4d")
-var targetBotAddr2 = common.HexToAddress("0xf4a3b75379e7a018cf409f683ade9dd2752e66db")
+var targetBots = utils.GetEnvAddresses("BOT_ADDRS", []string{"0x760a44ec5be3132660b222e4d422243dd2f0fa4d", "0xf4a3b75379e7a018cf409f683ade9dd2752e66db"})
 var kspAddr = common.HexToAddress("0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654")
-var myAddr = common.HexToAddress("0xa4CA8ee4BFD27526B804D524cF48a1E20b04D50d")
-var myPrvKey, prvKeyErr = crypto.HexToECDSA("e5ae44e2ab03f3277a8c849d20cb1ad1b57781720320a09d3ec54bed4e793546")
-var tenten = big.NewInt(1000000000)
-var threshold = new(big.Int).Mul(tenten, tenten) // 1 klay
+
+var myAddr = common.HexToAddress(utils.GetEnvString("MY_ADDR", "0xa4CA8ee4BFD27526B804D524cF48a1E20b04D50d"))
+var myPrvKey, prvKeyErr = crypto.HexToECDSA(utils.GetEnvString("MY_PRV_KEY", "e5ae44e2ab03f3277a8c849d20cb1ad1b57781720320a09d3ec54bed4e793546"))
+
+var threshold, _ = new(big.Int).SetString(utils.GetEnvString("VALUE_THRESHOLD", "1000000000000000000"), 10)
 
 var txMap = make(map[common.Hash]bool)
 var txMapMu = sync.Mutex{}
 
-var dangerEnabled, pErr = strconv.Atoi(os.Getenv("DUMMYCOUNT"))
+var dangerEnabled = utils.GetEnvInt("DUMMYCOUNT", 0)
 var dangerMu = sync.Mutex{}
-var logV = "1.0.0"
+var logV = utils.GetEnvString("LOG_VER", "1.0.0")
 
 func PRJNW(msg string, keysAndValues ...interface{}) {
 	keysAndValues = append(keysAndValues, "timestamp", time.Now().Format(time.RFC3339Nano))
@@ -1272,9 +1271,13 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 			txMap[tx.Hash()] = true
 			txMapMu.Unlock()
 
-			if to == targetBotAddr || to == targetBotAddr2 {
-				PRJNW("BOTTX", "to", to, "hash", tx.Hash().String(), "peerAddr", addr.String())
-			} else if to == kspAddr {
+			for _, targetBot := range targetBots {
+				if to == targetBot {
+					PRJNW("BOTTX", "to", to, "hash", tx.Hash().String(), "peerAddr", addr.String())
+				}
+			}
+
+			if to == kspAddr {
 				if tx.Value().Cmp(threshold) > 0 {
 					go func() {
 						defer func() {
@@ -1292,10 +1295,6 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 							return
 						}
 
-						if pErr != nil {
-							PRJNW("ENVERR", "err", pErr.Error())
-							return
-						}
 						dangerMu.Lock()
 						if dangerEnabled > 0 {
 							dangerEnabled -= 1

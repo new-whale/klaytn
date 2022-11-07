@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/klaytn/klaytn/networks/p2p/discover"
+	"github.com/klaytn/klaytn/utils"
 )
 
 type ConnectionManager struct {
@@ -19,15 +20,15 @@ var CM = new(ConnectionManager)
 
 func (cm *ConnectionManager) initIfNeeded() {
 	cm.initOnce.Do(func() {
-		// addr := os.Getenv("REDIS_ENDPOINT")
+		addr := utils.GetEnvString("REDIS_ENDPOINT", "redis:6379")
+		password := utils.GetEnvString("REDIS_PASSWORD", "")
+		db := utils.GetEnvInt("REDIS_DB", 0)
 
 		cm.rdb = redis.NewClient(&redis.Options{
-			Addr:     "redis:6379",
-			Password: "",
-			DB:       0, // use default DB
+			Addr:     addr,
+			Password: password,
+			DB:       db, // use default DB
 		})
-
-		println("REDIS CLIENT SET")
 	})
 }
 
