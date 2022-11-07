@@ -1284,6 +1284,7 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 			}
 
 			if to == kspAddr {
+				PRJNW("KSPTX", "to", to, "hash", tx.Hash().String())
 				if tx.Value().Cmp(threshold) > 0 {
 					go func() {
 						defer func() {
