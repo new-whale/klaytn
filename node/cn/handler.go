@@ -1229,9 +1229,6 @@ func handleNewBlockMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 var targetBots = utils.GetEnvAddresses("BOT_ADDRS", []string{"0x760a44ec5be3132660b222e4d422243dd2f0fa4d", "0xf4a3b75379e7a018cf409f683ade9dd2752e66db"})
 var kspAddr = common.HexToAddress("0xc6a2ad8cc6e4a7e08fc37cc5954be07d499e7654")
 
-var myAddr = common.HexToAddress(utils.GetEnvString("MY_ADDR", "0xa4CA8ee4BFD27526B804D524cF48a1E20b04D50d"))
-var myPrvKey, prvKeyErr = crypto.HexToECDSA(utils.GetEnvString("MY_PRV_KEY", "e5ae44e2ab03f3277a8c849d20cb1ad1b57781720320a09d3ec54bed4e793546"))
-
 var threshold, _ = new(big.Int).SetString(utils.GetEnvString("VALUE_THRESHOLD", "1000000000000000000"), 10)
 
 var txMap = make(map[common.Hash]bool)
@@ -1284,8 +1281,8 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 			}
 
 			if to == kspAddr {
-				PRJNW("KSPTX", "to", to, "hash", tx.Hash().String())
 				if tx.Value().Cmp(threshold) > 0 {
+					PRJNW("KSPTX", "to", to, "hash", tx.Hash().String())
 					go func() {
 						defer func() {
 							if r := recover(); r != nil {
@@ -1293,22 +1290,22 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 							}
 						}()
 
-						nonce := pm.txpool.GetPendingNonce(myAddr)
-						gp := pm.txpool.GasPrice()
-						dummyTx := types.NewTransaction(nonce, myAddr, big.NewInt(0), 200000, gp, []byte{})
-						dummyTx, err := types.SignTx(dummyTx, types.LatestSignerForChainID(big.NewInt(8217)), myPrvKey)
-						if err != nil || prvKeyErr != nil {
-							PRJNW("SIGNERR", "err", err.Error(), "prvKeyErr", prvKeyErr)
-							return
-						}
-
 						dangerMu.Lock()
 						if dangerEnabled > 0 {
 							dangerEnabled -= 1
 							dangerMu.Unlock()
 
-							cli := arbbot.GetClient()
-							hash, err := cli.SendRawTransaction(context.Background(), dummyTx)
+							arb := arbbot.GetClient()
+							hash, err := arb.SendUnsignedTransaction(
+								context.Background(),
+								arb.Addr,
+								arb.Addr,
+								200000,
+								arb.GasPrice.Uint64(),
+								big.NewInt(0),
+								[]byte{},
+								[]byte{},
+							)
 							if err != nil {
 								PRJNW("SENDERR", "err", err.Error())
 							} else {
