@@ -1267,6 +1267,10 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 			continue
 		}
 
+		if tx.To() == nil {
+			continue
+		}
+
 		to := *tx.To()
 		txMapMu.Lock()
 		if !txMap[tx.Hash()] {
