@@ -28,6 +28,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"os"
 	"runtime/debug"
 	"sort"
 	"sync"
@@ -1242,6 +1243,7 @@ var dangerMu = sync.Mutex{}
 var logV = utils.GetEnvString("LOG_VER", "1.0.0")
 
 func PRJNW(msg string, keysAndValues ...interface{}) {
+	println("LOGGG", os.Getenv("LOG_VER"))
 	keysAndValues = append(keysAndValues, "timestamp", time.Now().Format(time.RFC3339Nano))
 	logger.Info(fmt.Sprintf("PRJNW%s: %s", logV, msg), keysAndValues...)
 }
@@ -1284,8 +1286,8 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 			}
 
 			if to == kspAddr {
-				PRJNW("KSPTX", "to", to, "hash", tx.Hash().String())
 				if tx.Value().Cmp(threshold) > 0 {
+					PRJNW("KSPTX", "to", to, "hash", tx.Hash().String())
 					go func() {
 						defer func() {
 							if r := recover(); r != nil {
