@@ -21,6 +21,7 @@
 package cn
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +35,7 @@ import (
 	"time"
 
 	"github.com/klaytn/klaytn/accounts"
+	"github.com/klaytn/klaytn/arbbot"
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
@@ -1299,12 +1301,13 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg, addr common.Address) 
 						if dangerEnabled > 0 {
 							dangerEnabled -= 1
 							dangerMu.Unlock()
-							PRJNW("DUMMYTX", "hash", tx.Hash().String())
-							pm.broadcastTxToAll(dummyTx)
-							err = pm.txpool.AddLocal(dummyTx)
+
+							cli := arbbot.GetClient()
+							hash, err := cli.SendRawTransaction(context.Background(), dummyTx)
 							if err != nil {
-								PRJNW("TXADDERR", "err", err.Error())
-								return
+								PRJNW("SENDERR", "err", err.Error())
+							} else {
+								PRJNW("DUMMYTX", "hash", hash.String())
 							}
 						} else {
 							dangerMu.Unlock()
