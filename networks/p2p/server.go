@@ -1439,7 +1439,7 @@ running:
 				// NW: check connection would be disjoint
 				isValid, err2 := CM.Register(srv, c.id)
 				if err2 != nil {
-					srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err)
+					srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err2)
 					err = err2
 				}
 				if !isValid {
