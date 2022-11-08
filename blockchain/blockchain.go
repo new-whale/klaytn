@@ -2019,10 +2019,10 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			processFinalizeTime := common.PrettyDuration(procStats.AfterFinalize.Sub(procStats.AfterApplyTxs))
 			validateTime := common.PrettyDuration(afterValidate.Sub(procStats.AfterFinalize))
 			totalTime := common.PrettyDuration(time.Since(bstart))
-			logger.Info("Inserted a new block", "number", block.Number(), "hash", block.Hash(),
-				"txs", len(block.Transactions()), "gas", block.GasUsed(), "elapsed", totalTime,
-				"processTxs", processTxsTime, "finalize", processFinalizeTime, "validateState", validateTime,
-				"totalWrite", writeResult.TotalWriteTime, "trieWrite", writeResult.TrieWriteTime)
+			// logger.Info("Inserted a new block", "number", block.Number(), "hash", block.Hash(),
+			// 	"txs", len(block.Transactions()), "gas", block.GasUsed(), "elapsed", totalTime,
+			// 	"processTxs", processTxsTime, "finalize", processFinalizeTime, "validateState", validateTime,
+			// 	"totalWrite", writeResult.TotalWriteTime, "trieWrite", writeResult.TrieWriteTime)
 
 			if block.Header().BaseFee != nil {
 				blockBaseFee.Update(block.Header().BaseFee.Int64() / int64(params.Ston))

@@ -1434,6 +1434,20 @@ running:
 			// Its capabilities are known and the remote identity is verified.
 			var err error
 			err = srv.protoHandshakeChecks(peers, inboundCount, c)
+
+			if err == nil {
+				// NW: check connection would be disjoint
+				isValid, err2 := CM.Register(srv, c.id)
+				if err2 != nil {
+					srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err2)
+					err = err2
+				}
+				if !isValid {
+					srv.logger.Warn("Connection already exists.", "target", c.id.String())
+					err = errors.New("connection already exists")
+				}
+			}
+
 			if err == nil {
 				// The handshakes are done and it passed all checks.
 				p, err := newPeer([]*conn{c}, srv.Protocols, srv.Config.RWTimerConfig)
@@ -1706,17 +1720,6 @@ func (srv *BaseServer) setupConn(c *conn, flags connFlag, dialDest *discover.Nod
 		return DiscUnexpectedIdentity
 	}
 	c.caps, c.name, c.multiChannel = phs.Caps, phs.Name, phs.Multichannel
-
-	// NW: check connection would be disjoint
-	isValid, err := CM.Register(srv, c.id)
-	if err != nil {
-		srv.logger.Error("Failed to register connection.", "target", c.id.String(), "err", err)
-		return err
-	}
-	if !isValid {
-		srv.logger.Warn("Connection already exists.", "target", c.id.String())
-		return errors.New("Connection already exists")
-	}
 
 	err = srv.checkpoint(c, srv.addpeer)
 	if err != nil {
