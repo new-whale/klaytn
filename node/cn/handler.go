@@ -1243,6 +1243,7 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 			err = errResp(ErrDecode, "transaction %d is nil", i)
 			continue
 		}
+		p.GetP2PPeer().Log().Info("handleTxMsg", "txHash", tx.Hash().String(), "body", tx.Data())
 		p.AddToKnownTxs(tx.Hash())
 		validTxs = append(validTxs, tx)
 		txReceiveCounter.Inc(1)

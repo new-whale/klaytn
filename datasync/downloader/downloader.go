@@ -519,6 +519,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 	if (mode == FastSync || mode == SnapSync) && pivot.Number.Uint64() != 0 {
 		d.committed = 0
 	}
+	return nil
 	// Initiate the sync using a concurrent header and content retrieval algorithm
 	d.queue.Prepare(origin+1, mode)
 	if d.syncInitHook != nil {
