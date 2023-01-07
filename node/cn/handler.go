@@ -21,6 +21,7 @@
 package cn
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +34,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	"github.com/klaytn/klaytn/accounts"
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/types"
@@ -1223,6 +1225,17 @@ func handleNewBlockMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 	return nil
 }
 
+var redisClient = redis.NewClient(&redis.Options{
+	Addr: "127.0.0.1:6379",
+})
+
+type CommonTx struct {
+	Hash  common.Hash     `json:"hash"`
+	To    *common.Address `json:"to"`
+	Value *big.Int        `json:"value"`
+	Data  []byte          `json:"data"`
+}
+
 // handleTxMsg handles transaction-propagating message.
 func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
@@ -1243,7 +1256,32 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 			err = errResp(ErrDecode, "transaction %d is nil", i)
 			continue
 		}
-		p.AddToKnownTxs(tx.Hash())
+
+		if !p.KnowsTx(tx.Hash()) {
+			p.AddToKnownTxs(tx.Hash())
+			commonTx := CommonTx{
+				Hash:  tx.Hash(),
+				To:    tx.To(),
+				Value: tx.Value(),
+				Data:  tx.Data(),
+			}
+			js, err := json.Marshal(commonTx)
+			if err != nil {
+				panic(err)
+			}
+			x := new(CommonTx)
+			err = json.Unmarshal(js, x)
+			if err != nil {
+				panic(err)
+			}
+			_, err = redisClient.Publish(context.Background(), "tx", js).Result()
+			if err != nil {
+				p.GetP2PPeer().Log().Warn("pubTx", "txHash", tx.Hash().String(), "err", err.Error())
+			} else {
+				p.GetP2PPeer().Log().Info("pubTx", "txHash", tx.Hash().String())
+			}
+		}
+
 		validTxs = append(validTxs, tx)
 		txReceiveCounter.Inc(1)
 	}
