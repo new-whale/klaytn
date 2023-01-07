@@ -1229,6 +1229,13 @@ var redisClient = redis.NewClient(&redis.Options{
 	Addr: "127.0.0.1:6379",
 })
 
+type CommonTx struct {
+	Hash  common.Hash     `json:"hash"`
+	To    *common.Address `json:"to"`
+	Value *big.Int        `json:"value"`
+	Data  []byte          `json:"data"`
+}
+
 // handleTxMsg handles transaction-propagating message.
 func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
@@ -1252,16 +1259,21 @@ func handleTxMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
 
 		if !p.KnowsTx(tx.Hash()) {
 			p.AddToKnownTxs(tx.Hash())
-			js, err := tx.MarshalJSON()
+			commonTx := CommonTx{
+				Hash:  tx.Hash(),
+				To:    tx.To(),
+				Value: tx.Value(),
+				Data:  tx.Data(),
+			}
+			js, err := json.Marshal(commonTx)
 			if err != nil {
 				panic(err)
 			}
-			x := new(types.Transaction)
-			err = x.UnmarshalJSON(js)
+			x := new(CommonTx)
+			err = json.Unmarshal(js, x)
 			if err != nil {
 				panic(err)
 			}
-			println(string(js))
 			_, err = redisClient.Publish(context.Background(), "tx", js).Result()
 			if err != nil {
 				p.GetP2PPeer().Log().Warn("pubTx", "txHash", tx.Hash().String(), "err", err.Error())
